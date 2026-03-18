@@ -62,7 +62,13 @@ def diarize(audio_path: str, hf_token: str, device: str = "cuda:0") -> list[dict
     else:
         waveform = waveform.T
 
-    diarization = pipeline({"waveform": waveform, "sample_rate": sr})
+    result = pipeline({"waveform": waveform, "sample_rate": sr})
+
+    # pyannote 4.x returns DiarizeOutput; extract the Annotation
+    if hasattr(result, "speaker_diarization"):
+        diarization = result.speaker_diarization
+    else:
+        diarization = result
 
     segments = []
     for turn, _, speaker in diarization.itertracks(yield_label=True):
