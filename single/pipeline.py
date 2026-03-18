@@ -1,5 +1,8 @@
 import os
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore")
 
 import numpy as np
 import soundfile as sf
@@ -50,7 +53,16 @@ def diarize(audio_path: str, hf_token: str, device: str = "cuda:0") -> list[dict
     )
     pipeline.to(torch.device(device))
 
-    diarization = pipeline(audio_path)
+    # Load audio with soundfile and pass as waveform dict
+    # to avoid pyannote's broken torchcodec dependency
+    audio, sr = sf.read(audio_path)
+    waveform = torch.tensor(audio, dtype=torch.float32)
+    if waveform.ndim == 1:
+        waveform = waveform.unsqueeze(0)
+    else:
+        waveform = waveform.T
+
+    diarization = pipeline({"waveform": waveform, "sample_rate": sr})
 
     segments = []
     for turn, _, speaker in diarization.itertracks(yield_label=True):
