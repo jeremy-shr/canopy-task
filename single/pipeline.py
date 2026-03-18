@@ -46,7 +46,7 @@ def diarize(audio_path: str, hf_token: str, device: str = "cuda:0") -> list[dict
     """Run speaker diarization. Returns list of {start, end, speaker}."""
     pipeline = DiarizationPipeline.from_pretrained(
         "pyannote/speaker-diarization-3.1",
-        use_auth_token=hf_token,
+        token=hf_token,
     )
     pipeline.to(torch.device(device))
 
