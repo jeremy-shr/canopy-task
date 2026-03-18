@@ -72,3 +72,46 @@ The dataset has three columns:
 | `Transcript` | string | Transcribed text for the segment |
 | `Audio` | Audio | Denoised audio for the segment |
 | `Speaker` | string | Speaker label (e.g. SPEAKER_00) |
+
+### Batch processing
+
+Process all WAV files in a directory:
+
+```bash
+cd batch
+python main.py /path/to/wav/folder --output-dir ./batch_output --num-speakers 2
+```
+
+#### Arguments
+
+| Argument | Required | Default | Description |
+|---|---|---|---|
+| `input_dir` | Yes | — | Directory containing WAV files |
+| `--output-dir` | No | `./batch_output` | Output directory |
+| `--device` | No | `cuda:0` | CUDA device to use |
+| `--num-speakers` | No | auto-detect | Number of speakers per file |
+
+- Already-processed files are skipped on rerun
+- Each file is processed into its own subdirectory, then all results are combined into a single dataset at `<output-dir>/combined_dataset/`
+
+#### Output
+
+```
+batch_output/
+├── file1/                     # Per-file output
+│   ├── file1_denoised.wav
+│   ├── segments/
+│   └── dataset/
+├── file2/
+│   └── ...
+└── combined_dataset/          # Combined dataset across all files
+```
+
+The combined dataset has four columns:
+
+| Column | Type | Description |
+|---|---|---|
+| `Transcript` | string | Transcribed text for the segment |
+| `Audio` | Audio | Denoised audio for the segment |
+| `Speaker` | string | Speaker label (e.g. SPEAKER_00) |
+| `Source` | string | Source WAV filename (without extension) |
