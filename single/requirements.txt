@@ -1,0 +1,8 @@
+faster-whisper
+pyannote.audio
+demucs
+datasets
+soundfile
+torch
+torchaudio
+huggingface_hub
