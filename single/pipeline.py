@@ -12,19 +12,25 @@ from pyannote.audio import Pipeline as DiarizationPipeline
 
 def denoise(wav_path: str, output_dir: str, device: str = "cuda:0") -> str:
     """Remove background noise using Demucs. Returns path to denoised vocals."""
-    from demucs.api import Separator
+    from demucs.pretrained import get_model
+    from demucs.apply import apply_model
 
-    separator = Separator(model="htdemucs", device=device)
-    _, separated = separator.separate_audio_file(wav_path)
+    model = get_model("htdemucs")
+    model.to(device)
 
-    vocals = separated["vocals"]
-    vocals_np = vocals.cpu().numpy()
+    wav, sr = torchaudio.load(wav_path)
+    # apply_model expects (batch, channels, samples)
+    wav = wav.unsqueeze(0).to(device)
+
+    sources = apply_model(model, wav)
+    # sources shape: (batch, num_sources, channels, samples)
+    # htdemucs sources: drums, bass, other, vocals
+    vocals_idx = model.sources.index("vocals")
+    vocals = sources[0, vocals_idx].cpu()
 
     stem_name = Path(wav_path).stem
     out_path = os.path.join(output_dir, f"{stem_name}_denoised.wav")
-
-    info = torchaudio.info(wav_path)
-    sf.write(out_path, vocals_np.T, info.sample_rate)
+    torchaudio.save(out_path, vocals, sr)
 
     return out_path
 
