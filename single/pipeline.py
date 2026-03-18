@@ -4,7 +4,6 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 import torch
-import torchaudio
 from datasets import Audio, Dataset
 from faster_whisper import WhisperModel
 from pyannote.audio import Pipeline as DiarizationPipeline
@@ -18,7 +17,15 @@ def denoise(wav_path: str, output_dir: str, device: str = "cuda:0") -> str:
     model = get_model("htdemucs")
     model.to(device)
 
-    wav, sr = torchaudio.load(wav_path)
+    audio, sr = sf.read(wav_path)
+    # soundfile returns (samples,) for mono or (samples, channels) for stereo
+    # convert to torch tensor with shape (channels, samples)
+    wav = torch.tensor(audio, dtype=torch.float32)
+    if wav.ndim == 1:
+        wav = wav.unsqueeze(0)  # mono -> (1, samples)
+    else:
+        wav = wav.T  # (samples, channels) -> (channels, samples)
+
     # apply_model expects (batch, channels, samples)
     wav = wav.unsqueeze(0).to(device)
 
@@ -26,11 +33,11 @@ def denoise(wav_path: str, output_dir: str, device: str = "cuda:0") -> str:
     # sources shape: (batch, num_sources, channels, samples)
     # htdemucs sources: drums, bass, other, vocals
     vocals_idx = model.sources.index("vocals")
-    vocals = sources[0, vocals_idx].cpu()
+    vocals = sources[0, vocals_idx].cpu().numpy().T  # (channels, samples) -> (samples, channels)
 
     stem_name = Path(wav_path).stem
     out_path = os.path.join(output_dir, f"{stem_name}_denoised.wav")
-    torchaudio.save(out_path, vocals, sr)
+    sf.write(out_path, vocals, sr)
 
     return out_path
 
