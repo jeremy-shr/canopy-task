@@ -45,7 +45,7 @@ def denoise(wav_path: str, output_dir: str, device: str = "cuda:0") -> str:
     return out_path
 
 
-def diarize(audio_path: str, hf_token: str, device: str = "cuda:0") -> list[dict]:
+def diarize(audio_path: str, hf_token: str, device: str = "cuda:0", num_speakers: int = None) -> list[dict]:
     """Run speaker diarization. Returns list of {start, end, speaker}."""
     pipeline = DiarizationPipeline.from_pretrained(
         "pyannote/speaker-diarization-3.1",
@@ -62,7 +62,11 @@ def diarize(audio_path: str, hf_token: str, device: str = "cuda:0") -> list[dict
     else:
         waveform = waveform.T
 
-    result = pipeline({"waveform": waveform, "sample_rate": sr})
+    kwargs = {}
+    if num_speakers is not None:
+        kwargs["num_speakers"] = num_speakers
+
+    result = pipeline({"waveform": waveform, "sample_rate": sr}, **kwargs)
 
     # pyannote 4.x returns DiarizeOutput; extract the Annotation
     if hasattr(result, "speaker_diarization"):
@@ -115,6 +119,7 @@ def process_wav(
     output_dir: str,
     hf_token: str,
     device: str = "cuda:0",
+    num_speakers: int = None,
 ) -> Dataset:
     """Full pipeline: denoise -> diarize -> slice -> transcribe -> dataset."""
     os.makedirs(output_dir, exist_ok=True)
@@ -125,7 +130,7 @@ def process_wav(
     clean_path = denoise(wav_path, output_dir, device=device)
 
     print("[2/4] Diarizing...")
-    segments = diarize(clean_path, hf_token, device=device)
+    segments = diarize(clean_path, hf_token, device=device, num_speakers=num_speakers)
     print(f"      Found {len(segments)} segments")
 
     print("[3/4] Transcribing segments...")
@@ -150,6 +155,9 @@ def process_wav(
         sf.write(seg_path, audio_chunk, sr)
 
         text = transcribe(audio_chunk, sr, whisper_model)
+
+        if not text.strip():
+            continue
 
         rows.append({
             "transcript": text,

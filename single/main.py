@@ -20,6 +20,12 @@ def main():
         default="cuda:0",
         help="CUDA device to use (default: cuda:0)",
     )
+    parser.add_argument(
+        "--num-speakers",
+        type=int,
+        default=None,
+        help="Number of speakers (default: auto-detect)",
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.wav_path):
@@ -37,6 +43,7 @@ def main():
         output_dir=args.output_dir,
         hf_token=hf_token,
         device=args.device,
+        num_speakers=args.num_speakers,
     )
 
 
